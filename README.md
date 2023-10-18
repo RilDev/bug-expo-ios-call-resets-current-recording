@@ -1,5 +1,7 @@
 # Expo iOS Bug: When receiving a call, automatically resets the current recording
 
+Issue URL: https://github.com/expo/expo/issues/24922
+
 <img src="./assets/demo.png" width="300">
 
 ## Expected behaviour
