@@ -5,21 +5,20 @@ import { Audio } from "expo-av";
 const recordingState = {
   NOT_STARTED: "NOT_STARTED",
   RECORDING: "RECORDING",
-  PAUSED: "PAUSED",
 };
 
 export default function App() {
   const [recording, setRecording] = useState();
   const [sound, setSound] = useState();
-  const [audioURI, setAudioURI] = useState();
+  const [audioURI, setAudioURI] = useState([]);
   const [currentRecordingState, setCurrentRecordingState] = useState(
     recordingState.NOT_STARTED
   );
 
-  async function playSound() {
+  async function playSound(uri) {
     if (!audioURI) return;
     console.log("Loading Sound");
-    const { sound } = await Audio.Sound.createAsync({ uri: audioURI });
+    const { sound } = await Audio.Sound.createAsync({ uri });
     setSound(sound);
 
     console.log("Playing Sound");
@@ -36,13 +35,6 @@ export default function App() {
   }, [sound]);
 
   async function startRecording() {
-    if (recording) {
-      console.log("Resuming recording...");
-      setCurrentRecordingState(recordingState.RECORDING);
-      recording.startAsync();
-      return;
-    }
-
     try {
       console.log("Requesting permissions..");
       await Audio.requestPermissionsAsync();
@@ -57,7 +49,7 @@ export default function App() {
       );
       recording.setOnRecordingStatusUpdate(onRecordingStatusUpdate);
 
-      setAudioURI(null);
+      // setAudioURI([]);
       setRecording(recording);
       setCurrentRecordingState(recordingState.RECORDING);
       console.log("Recording started");
@@ -66,56 +58,52 @@ export default function App() {
     }
   }
 
-  async function pauseRecording() {
-    if (!recording) return;
-    console.log("Pausing recording...");
-    await recording.pauseAsync();
-    setCurrentRecordingState(recordingState.PAUSED);
-  }
-
   async function stopRecording() {
+    console.log("stopRecording", recording);
+    if (!recording) return;
+
     console.log("Stopping recording..");
-    setRecording(undefined);
     await recording.stopAndUnloadAsync();
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
     });
     const uri = recording.getURI();
     console.log("Recording stopped and stored at", uri);
-    setAudioURI(uri);
+    setAudioURI([...audioURI, uri]);
     setCurrentRecordingState(recordingState.NOT_STARTED);
+    setRecording(undefined);
   }
 
-  onRecordingStatusUpdate = (status) => {
+  onRecordingStatusUpdate = async (status) => {
+    await onRecordingStatusUpdateSynced(status);
+  };
+  onRecordingStatusUpdateSynced = async (status) => {
     // on iOS, a call will stop the recording
-    if (!status.isRecording) {
-      console.log("onRecordingStatusUpadte, not recording", status);
-      setCurrentRecordingState(recordingState.PAUSED);
+    if (!status.isRecording && status.canRecord) {
+      console.log("stopping recording...");
+      await stopRecording();
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>On an iOS device:</Text>
-      <Text style={styles.text}>
-        Start recording and call yourself while recording.
-      </Text>
-      <Text style={styles.text}>
-        Try to record some more and checkout if you still have the first part of
-        your recording.
-      </Text>
-      {(currentRecordingState === recordingState.NOT_STARTED ||
-        currentRecordingState === recordingState.PAUSED) && (
+      {currentRecordingState === recordingState.NOT_STARTED && (
         <Button title={"Start Recording"} onPress={startRecording} />
       )}
       {currentRecordingState === recordingState.RECORDING && (
-        <Button title={"Pause Recording"} onPress={pauseRecording} />
+        <Button
+          title={"Stop Recording"}
+          onPress={() => recording.pauseAsync()}
+        />
       )}
-      {(currentRecordingState === recordingState.RECORDING ||
-        currentRecordingState === recordingState.PAUSED) && (
-        <Button title={"Stop Recording"} onPress={stopRecording} />
-      )}
-      <Button title="Play Sound" onPress={playSound} disabled={!audioURI} />
+      {!!audioURI.length && <Text style={styles.text}>Playbacks</Text>}
+      {audioURI?.map((uri, index) => (
+        <Button
+          key={uri}
+          title={`Play Sound ${index}`}
+          onPress={() => playSound(uri)}
+        />
+      ))}
     </View>
   );
 }
@@ -129,6 +117,8 @@ const styles = StyleSheet.create({
   },
   text: {
     textAlign: "center",
+    fontSize: 20,
+    marginTop: 30,
     marginBottom: 10,
   },
 });

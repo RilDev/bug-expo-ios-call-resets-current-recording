@@ -16,6 +16,14 @@ Issue URL: https://github.com/expo/expo/issues/24922
 - Receive phone call (the phone call pauses the recording & reset the durationMillis to 0)
 - When resuming the recording, what was recorded before the phone call is ereased.
 
+## Fix
+
+Every time the recording is paused, save file and start a new recording when the user wants to resume the original recording.
+
+### On device concatenation
+
+https://github.com/expo/config-plugins/blob/main/packages/ffmpeg-kit-react-native/README.md
+
 ## The MVP
 
 Starter, example from the documentation: https://docs.expo.dev/versions/latest/sdk/audio/#recording-sounds
